@@ -3,7 +3,7 @@ import type { NextRequest, NextResponse } from "next/server";
 
 export function createRequestCookieStore(request: NextRequest): CookieStore {
   return {
-    get: (name: string) => request.cookies.get(name),
+    get: (name: string) => request.cookies.get(name)?.value,
   };
 }
 
@@ -47,7 +47,7 @@ export function createResponseCookieStore(response: NextResponse): CookieStore {
   }
 
   return {
-    get: (name: string) => response.cookies.get(name),
+    get: (name: string) => response.cookies.get(name)?.value,
     set: setCookie,
     delete: deleteCookie,
   };

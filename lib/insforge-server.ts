@@ -7,7 +7,7 @@ export async function createInsforgeServer(): Promise<InsForgeClient> {
 
   return createServerClient({
     cookies: {
-      get: (name: string) => cookieStore.get(name),
+      get: (name: string) => cookieStore.get(name)?.value,
     },
   });
 }

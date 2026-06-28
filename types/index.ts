@@ -108,3 +108,27 @@ export type AgentLog = {
   job_id: string | null;
   created_at: string;
 };
+
+export type ExtractedProfileData = {
+  full_name: string;
+  phone: string;
+  location: string;
+  linkedin_url: string;
+  portfolio_url: string;
+  work_authorization: WorkAuthorization | "";
+  current_title: string;
+  experience_level: ExperienceLevel | "";
+  years_experience: string;
+  skills: string[];
+  industries: string[];
+  work_experience: WorkExperience[];
+  degree: string;
+  field: string;
+  institution: string;
+  graduation_year: string;
+  job_titles_seeking: string[];
+  remote_preference: RemotePreference | "";
+  salary_expectation: string;
+  preferred_locations: string[];
+  cover_letter_tone: CoverLetterTone | "";
+};

@@ -12,7 +12,7 @@ function isProtectedRoute(pathname: string): boolean {
 
 function createRequestCookieStore(request: NextRequest): CookieStore {
   return {
-    get: (name: string) => request.cookies.get(name),
+    get: (name: string) => request.cookies.get(name)?.value,
   };
 }
 
@@ -56,7 +56,7 @@ function createResponseCookieStore(response: NextResponse): CookieStore {
   }
 
   return {
-    get: (name: string) => response.cookies.get(name),
+    get: (name: string) => response.cookies.get(name)?.value,
     set: setCookie,
     delete: deleteCookie,
   };

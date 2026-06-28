@@ -1,39 +1,50 @@
-import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { Footer } from "@/components/layout/Footer";
 import { Navbar } from "@/components/layout/Navbar";
+import { DashboardPage } from "@/components/dashboard/DashboardPage";
+import {
+  getDashboardStats,
+  getRecentActivity,
+  getDashboardChartData,
+} from "@/actions/dashboard";
+import { createInsforgeServer } from "@/lib/insforge-server";
 
-export default function DashboardPage() {
+export default async function Page() {
+  const insforge = await createInsforgeServer();
+  const { data: userData } = await insforge.auth.getCurrentUser();
+
+  if (!userData?.user) {
+    redirect("/login");
+  }
+
+  const { data: profile } = await insforge.database
+    .from("profiles")
+    .select("is_complete")
+    .eq("id", userData.user.id)
+    .single();
+
+  const profileComplete = profile?.is_complete ?? false;
+
+  const statsResult = await getDashboardStats();
+  const stats = statsResult.success ? statsResult.stats : undefined;
+
+  const activityResult = await getRecentActivity();
+  const activities = activityResult.success ? activityResult.activities : undefined;
+
+  const chartsResult = await getDashboardChartData();
+  const charts = chartsResult.success ? chartsResult.charts : undefined;
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <main className="mx-auto flex max-w-360 flex-1 px-6 py-8">
-        <section className="w-full rounded-2xl border border-border bg-surface p-6 shadow-sm">
-          <p className="mb-2 text-sm font-medium uppercase tracking-[0.18em] text-accent">
-            Dashboard
-          </p>
-          <h1 className="text-3xl font-semibold tracking-[-0.03em] text-text-primary">
-            You&apos;re signed in
-          </h1>
-          <p className="mt-3 max-w-2xl text-sm font-medium leading-6 text-text-secondary">
-            Auth is ready. The full dashboard UI will be built in Phase 5 after
-            profile, job discovery, and analytics data are available.
-          </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Link
-              href="/profile"
-              className="inline-flex items-center justify-center rounded-md bg-overlay px-4 py-2 text-sm font-medium text-surface transition-colors hover:bg-overlay-dark"
-            >
-              Set up profile
-            </Link>
-            <Link
-              href="/find-jobs"
-              className="inline-flex items-center justify-center rounded-md border border-border bg-surface px-4 py-2 text-sm font-medium text-text-primary transition-colors hover:bg-surface-secondary"
-            >
-              Find jobs
-            </Link>
-          </div>
-        </section>
+      <main className="mx-auto max-w-360 px-6 py-8">
+        <DashboardPage
+          profileComplete={profileComplete}
+          stats={stats}
+          activities={activities}
+          charts={charts}
+        />
       </main>
       <Footer />
     </div>
