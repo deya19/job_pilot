@@ -212,13 +212,13 @@ export type DashboardCharts = {
 
 function startOfDay(date: Date): Date {
   const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
+  d.setUTCHours(0, 0, 0, 0);
   return d;
 }
 
 function addDays(date: Date, days: number): Date {
   const d = new Date(date);
-  d.setDate(d.getDate() + days);
+  d.setUTCDate(d.getUTCDate() + days);
   return d;
 }
 
@@ -262,8 +262,7 @@ export async function getDashboardChartData(): Promise<{
       .database
       .from("jobs")
       .select("found_at")
-      .eq("user_id", userId)
-      .gte("found_at", thirtyDaysAgo.toISOString());
+      .eq("user_id", userId);
 
     if (jobsFoundError) {
       console.error("[actions/dashboard] jobsFound error:", jobsFoundError);
@@ -273,7 +272,9 @@ export async function getDashboardChartData(): Promise<{
     const jobsFoundCounts = new Map<string, number>();
     for (const row of jobsFoundRows ?? []) {
       if (!row.found_at) continue;
-      const key = toISODate(new Date(row.found_at));
+      const foundAt = new Date(row.found_at);
+      if (Number.isNaN(foundAt.getTime()) || foundAt < thirtyDaysAgo) continue;
+      const key = toISODate(foundAt);
       jobsFoundCounts.set(key, (jobsFoundCounts.get(key) ?? 0) + 1);
     }
 
@@ -293,8 +294,7 @@ export async function getDashboardChartData(): Promise<{
       .from("jobs")
       .select("found_at")
       .eq("user_id", userId)
-      .not("company_research", "is", null)
-      .gte("found_at", thirtyDaysAgo.toISOString());
+      .not("company_research", "is", null);
 
     if (researchError) {
       console.error(
@@ -307,7 +307,9 @@ export async function getDashboardChartData(): Promise<{
     const researchCounts = new Map<string, number>();
     for (const row of researchRows ?? []) {
       if (!row.found_at) continue;
-      const key = toISODate(new Date(row.found_at));
+      const foundAt = new Date(row.found_at);
+      if (Number.isNaN(foundAt.getTime()) || foundAt < thirtyDaysAgo) continue;
+      const key = toISODate(foundAt);
       researchCounts.set(key, (researchCounts.get(key) ?? 0) + 1);
     }
 

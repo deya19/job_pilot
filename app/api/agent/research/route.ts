@@ -157,11 +157,44 @@ function selectSubPageLinks(
     .slice(0, 3)
 }
 
+function getResearchSources(value: unknown): string[] {
+  if (!value || typeof value !== 'object' || !('sources' in value)) {
+    return []
+  }
+
+  const sources = value.sources
+  return Array.isArray(sources) && sources.every((source) => typeof source === 'string')
+    ? sources
+    : []
+}
+
+function createFallbackDossier(companyResearch: unknown, job: Job, profile: Profile): CompanyResearch {
+  return {
+    companyOverview:
+      job.about_company ??
+      `Research collected for ${job.company} was limited. Review the job posting and the company's public website before applying.`,
+    techStack: profile.skills.slice(0, 10),
+    culture: [],
+    whyThisRole:
+      job.match_reason ??
+      `This role may align with the candidate's profile based on the available job information.`,
+    yourEdge: job.matched_skills.slice(0, 8),
+    gapsToAddress: job.missing_skills.slice(0, 8),
+    smartQuestions: [
+      `What would success look like in the first 90 days for this ${job.title} role?`,
+      `Which technologies and processes does the team use most often?`,
+    ],
+    interviewPrep: job.requirements.slice(0, 8),
+    sources: getResearchSources(companyResearch),
+  }
+}
+
 async function synthesizeCompanyResearch(
   companyResearch: unknown,
   job: Job,
   profile: Profile,
 ): Promise<CompanyResearch> {
+  const fallback = createFallbackDossier(companyResearch, job, profile)
   const systemPrompt = `You are a sharp career strategist preparing a candidate to apply for a specific role. You are given (a) research collected from the company's own website, (b) the job posting, and (c) the candidate's profile. Produce a concise, concrete briefing that gives this specific candidate an edge for this specific role.
 
 Rules:
@@ -200,34 +233,49 @@ Experience: ${profile.years_experience ?? 'Not specified'} years, level ${profil
 Skills: ${profile.skills.join(', ')}
 Work history: ${JSON.stringify(profile.work_experience)}`
 
-  const response = await openai.chat.completions.create({
-    model: 'gpt-4o',
-    response_format: { type: 'json_object' },
-    temperature: 0.4,
-    max_tokens: 800,
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-  })
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      response_format: { type: 'json_object' },
+      temperature: 0.4,
+      max_tokens: 800,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+    })
 
-  const content = response.choices[0].message.content
-  if (!content) {
-    throw new Error('OpenAI returned empty research synthesis')
-  }
+    const content = response.choices[0].message.content
+    if (!content) {
+      return fallback
+    }
 
-  const parsed = dossierSchema.parse(JSON.parse(content))
+    let parsedJson: unknown
+    try {
+      parsedJson = JSON.parse(content)
+    } catch {
+      return fallback
+    }
 
-  return {
-    companyOverview: parsed.companyOverview,
-    techStack: parsed.techStack,
-    culture: parsed.culture,
-    whyThisRole: parsed.whyThisRole,
-    yourEdge: parsed.yourEdge,
-    gapsToAddress: parsed.gapsToAddress,
-    smartQuestions: parsed.smartQuestions,
-    interviewPrep: parsed.interviewPrep,
-    sources: parsed.sources,
+    const parsed = dossierSchema.safeParse(parsedJson)
+    if (!parsed.success) {
+      return fallback
+    }
+
+    return {
+      companyOverview: parsed.data.companyOverview,
+      techStack: parsed.data.techStack,
+      culture: parsed.data.culture,
+      whyThisRole: parsed.data.whyThisRole,
+      yourEdge: parsed.data.yourEdge,
+      gapsToAddress: parsed.data.gapsToAddress,
+      smartQuestions: parsed.data.smartQuestions,
+      interviewPrep: parsed.data.interviewPrep,
+      sources: parsed.data.sources,
+    }
+  } catch (error) {
+    console.error('[agent/research] synthesis request failed:', error)
+    return fallback
   }
 }
 
